@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ECG Challenge — 10 Progressive Cases</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--text:#17191c;--muted:#667085;--border:#d9dde5;--accent:#2457d6;--ok:#18794e;--bad:#b42318}
+*{box-sizing:border-box} body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+main{max-width:980px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:16px}
+.muted{color:var(--muted);font-size:.9rem}.progress{height:8px;background:#e9ecf2;border-radius:9px;overflow:hidden;margin-top:12px}.progress>div{height:100%;background:var(--accent)}
+.ecg{overflow:auto;border:1px solid var(--border);border-radius:10px;background:white;margin-top:12px}.ecg svg{display:block;min-width:720px;width:100%}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field label{display:block;font-size:.88rem;font-weight:650;margin-bottom:5px}
+input,select{width:100%;min-height:44px;border:1px solid var(--border);border-radius:9px;padding:9px 10px;font:inherit;background:white}
+button{border:0;border-radius:9px;min-height:44px;padding:10px 17px;font:inherit;font-weight:700;cursor:pointer;background:var(--accent);color:white;margin-top:14px}
+.scorebox{border:1px solid var(--border);border-radius:9px;padding:6px 11px;font-weight:700}.hidden{display:none}
+.breakdown{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}.mini{border:1px solid var(--border);border-radius:9px;padding:9px}.mini small{display:block;color:var(--muted)}
+.good{color:var(--ok)}.bad{color:var(--bad)} h1{font-size:1.35rem;margin:0}h2{font-size:1.15rem;margin:0 0 5px}
+@media(max-width:700px){main{padding:14px}.grid{grid-template-columns:1fr}.breakdown{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body><main>
+<div class="top"><div><div class="muted">10 progressively harder cases</div><h1 id="heading">Case 1 of 10 · Foundation</h1></div><div class="scorebox">Score <span id="score">0 / 0</span></div></div>
+<div class="progress"><div id="bar" style="width:10%"></div></div>
+
+<section class="card">
+<h2>12-lead synthetic ECG</h2><div class="muted">25 mm/s · 10 mm/mV · Educational tracing, not a patient ECG.</div>
+<div class="ecg"><svg id="svg" viewBox="0 0 1000 300" aria-label="Synthetic ECG tracing"></svg></div>
+</section>
+
+<form id="form" class="card">
+<div class="grid">
+<div class="field"><label>Rate (bpm)</label><input id="rate" type="number" min="20" max="300" required></div>
+<div class="field"><label>Rhythm</label><select id="rhythm" required><option value="">Choose…</option><option>Regular</option><option>Regularly irregular</option><option>Irregularly irregular</option></select></div>
+<div class="field"><label>Axis</label><select id="axis" required><option value="">Choose…</option><option>Normal</option><option>Left axis deviation</option><option>Right axis deviation</option><option>Extreme axis</option><option>Indeterminate</option></select></div>
+<div class="field"><label>PR interval (ms; 0 if not measurable)</label><input id="pr" type="number" min="0" max="600"></div>
+<div class="field"><label>QRS duration (ms)</label><input id="qrs" type="number" min="40" max="300" required></div>
+<div class="field"><label>QTc (ms)</label><input id="qtc" type="number" min="200" max="800" required></div>
+</div>
+<div class="field" style="margin-top:12px"><label>Diagnosis</label><select id="dx" required></select></div>
+<button type="submit">Commit interpretation</button>
+</form>
+
+<section id="feedback" class="card hidden">
+<div class="top"><div><div class="muted">Diagnosis revealed</div><h2 id="reveal"></h2></div><div id="caseScore" class="scorebox"></div></div>
+<div id="breakdown" class="breakdown"></div>
+<h3>Why</h3><p id="why"></p>
+<h3>Your mistakes</h3><p id="mistakes"></p>
+<button id="next" type="button">Next case</button>
+</section>
+
+<section id="final" class="card hidden"><h2>Challenge complete</h2><h1 id="finalScore"></h1><div id="domain" class="breakdown"></div><p id="note"></p><button id="restart" type="button">Restart challenge</button></section>
+
+<script>
+const diagnoses=["Normal sinus rhythm","Sinus bradycardia","Atrial fibrillation","Atrial flutter with 2:1 conduction","First-degree AV block","Mobitz I (Wenckebach)","Right bundle branch block","Left anterior fascicular block","Ventricular tachycardia","Complete heart block"];
+const C=[
+["Foundation",72,"Regular","Normal",160,90,410,diagnoses[0],"sinus","A P wave precedes every QRS with a constant PR, the rhythm is regular, QRS complexes are narrow, and the frontal axis is normal."],
+["Foundation+",46,"Regular","Normal",170,88,390,diagnoses[1],"brady","Sinus P waves conduct 1:1 with a constant PR and narrow QRS, but the ventricular rate is below 60 bpm."],
+["Intermediate",118,"Irregularly irregular","Normal",0,92,430,diagnoses[2],"af","There are no consistent P waves and the R-R intervals vary unpredictably."],
+["Intermediate",150,"Regular","Normal",0,88,440,diagnoses[3],"flutter","Regular narrow complexes near 150 bpm with repetitive atrial flutter activity indicate flutter with approximately 2:1 AV conduction."],
+["Intermediate+",68,"Regular","Normal",260,94,415,diagnoses[4],"first","Every P wave conducts, but the PR interval is consistently prolonged beyond 200 ms."],
+["Advanced",58,"Regularly irregular","Normal",0,90,420,diagnoses[5],"wenck","Progressive PR prolongation culminates in a non-conducted P wave, then the cycle resets."],
+["Advanced",76,"Regular","Normal",170,150,455,diagnoses[6],"rbbb","A wide QRS with a terminal rightward deflection in V1 and broad terminal S waves in lateral leads supports right bundle branch block."],
+["Advanced+",82,"Regular","Left axis deviation",165,98,425,diagnoses[7],"lafb","A relatively narrow QRS with left axis deviation supports left anterior fascicular block."],
+["Expert",178,"Regular","Extreme axis",0,168,500,diagnoses[8],"vt","A fast, regular, broad-complex rhythm with no reliable P-QRS relationship and an extreme axis should be treated as ventricular tachycardia."],
+["Expert+",38,"Regular","Right axis deviation",0,142,490,diagnoses[9],"chb","Atrial activity marches independently through a slow ventricular escape rhythm, establishing AV dissociation and complete heart block."]
+];
+let i=0,total=0,possible=0,D={Rate:[0,0],Rhythm:[0,0],Axis:[0,0],Intervals:[0,0],Diagnosis:[0,0]};
+const $=x=>document.querySelector(x), form=$("#form"), svg=$("#svg");
+$("#dx").innerHTML='<option value="">Choose…</option>'+diagnoses.map(x=>`<option>${x}</option>`).join("");
+function num(v,t,tol){return Math.abs(v-t)<=tol}
+function render(c){
+svg.innerHTML=""; const ns="http://www.w3.org/2000/svg";
+let bg=document.createElementNS(ns,"rect");bg.setAttribute("width",1000);bg.setAttribute("height",300);bg.setAttribute("fill","#fff");svg.append(bg);
+for(let x=0;x<=1000;x+=10){let l=document.createElementNS(ns,"line");Object.entries({x1:x,x2:x,y1:0,y2:300,stroke:"#e6bfc3","stroke-width":x%50===0?1:.35}).forEach(([k,v])=>l.setAttribute(k,v));svg.append(l)}
+for(let y=0;y<=300;y+=10){let l=document.createElementNS(ns,"line");Object.entries({x1:0,x2:1000,y1:y,y2:y,stroke:"#e6bfc3","stroke-width":y%50===0?1:.35}).forEach(([k,v])=>l.setAttribute(k,v));svg.append(l)}
+let leads=["I","II","III","aVR","aVL","aVF","V1","V2","V3","V4","V5","V6"], rows=[42,100,158,216];
+leads.forEach((lead,j)=>{let col=j%3,row=Math.floor(j/3),x0=18+col*330,y0=rows[row],t=document.createElementNS(ns,"text");t.setAttribute("x",x0);t.setAttribute("y",y0-22);t.setAttribute("font-size",12);t.textContent=lead;svg.append(t);
+let beats=Math.max(2,Math.round(c[1]/30)),step=285/beats,d=`M ${x0+25} ${y0}`;
+for(let b=0;b<beats;b++){let base=x0+25+b*step+(c[8]=="af"?((b%3)*9-7):0),amp=lead=="aVR"?-1:1;if(c[8]=="lafb"&&["II","III","aVF"].includes(lead))amp=-1;if(c[8]=="vt")amp=["aVR","V1"].includes(lead)?1:-1;
+if(c[8]=="af")d+=` L ${base+step*.12} ${y0+3} L ${base+step*.22} ${y0-2}`;else if(c[8]=="flutter"){for(let k=0;k<2;k++){let s=base+k*step*.45;d+=` L ${s+step*.10} ${y0-7} L ${s+step*.18} ${y0}`}}else d+=` L ${base+step*.12} ${y0} L ${base+step*.18} ${y0-7} L ${base+step*.24} ${y0}`;
+if(c[8]=="wenck"&&b%4==3){d+=` L ${base+step*.7} ${y0}`;continue}
+let q=base+step*.42,wide=["rbbb","vt","chb"].includes(c[8]),qw=wide?step*.28:step*.14,a=amp*(c[8]=="vt"?24:19);
+d+=` L ${q} ${y0+4*amp} L ${q+qw*.35} ${y0-a} L ${q+qw*.65} ${y0+8*amp} L ${q+qw} ${y0} L ${base+step*.78} ${y0} Q ${base+step*.86} ${y0-7*amp} ${base+step*.95} ${y0}`;
+}
+let p=document.createElementNS(ns,"path");p.setAttribute("d",d);p.setAttribute("fill","none");p.setAttribute("stroke","#17191c");p.setAttribute("stroke-width","1.7");svg.append(p)})}
+function load(){let c=C[i];$("#heading").textContent=`Case ${i+1} of 10 · ${c[0]}`;$("#bar").style.width=(i+1)*10+"%";form.reset();$("#dx").value="";form.classList.remove("hidden");$("#feedback").classList.add("hidden");$("#final").classList.add("hidden");render(c)}
+function mini(n,p,m,ok){return `<div class="mini"><small>${n}</small><b class="${ok?"good":"bad"}">${p}/${m} ${ok?"✓":"✗"}</b></div>`}
+form.addEventListener("submit",e=>{e.preventDefault();let c=C[i],r=+$("#rate").value,pr=+($("#pr").value||0),q=+$("#qrs").value,qt=+$("#qtc").value;
+let a=num(r,c[1],Math.max(5,Math.round(c[1]*.1))),b=$("#rhythm").value==c[2],d=$("#axis").value==c[3],e1=c[4]===0?pr===0:num(pr,c[4],30),e2=num(q,c[5],20),e3=num(qt,c[6],35),ints=[e1,e2,e3].filter(Boolean).length,f=$("#dx").value==c[7],pts=(a?2:0)+(b?2:0)+(d?2:0)+ints*2+(f?4:0);
+total+=pts;possible+=16;[["Rate",a,2],["Rhythm",b,2],["Axis",d,2],["Diagnosis",f,4]].forEach(x=>{D[x[0]][0]+=x[1]?x[2]:0;D[x[0]][1]+=x[2]});D.Intervals[0]+=ints*2;D.Intervals[1]+=6;
+$("#score").textContent=`${total} / ${possible}`;$("#reveal").textContent=c[7];$("#caseScore").textContent=`${pts} / 16`;$("#breakdown").innerHTML=mini("Rate",a?2:0,2,a)+mini("Rhythm",b?2:0,2,b)+mini("Axis",d?2:0,2,d)+mini("Intervals",ints*2,6,ints==3)+mini("Diagnosis",f?4:0,4,f);$("#why").textContent=c[9];
+let m=[];if(!a)m.push(`Rate: ${r}; target ≈ ${c[1]} bpm.`);if(!b)m.push(`Rhythm: expected ${c[2]}.`);if(!d)m.push(`Axis: expected ${c[3]}.`);if(!e1)m.push(c[4]===0?"PR: no stable measurable PR is expected.":`PR: target ≈ ${c[4]} ms.`);if(!e2)m.push(`QRS: target ≈ ${c[5]} ms.`);if(!e3)m.push(`QTc: target ≈ ${c[6]} ms.`);if(!f)m.push(`Diagnosis: best answer is ${c[7]}.`);$("#mistakes").textContent=m.length?m.join(" "):"No scored errors on this case.";
+form.classList.add("hidden");$("#feedback").classList.remove("hidden");$("#next").textContent=i==9?"See final score":"Next case"});
+$("#next").addEventListener("click",()=>{if(i<9){i++;load()}else{form.classList.add("hidden");$("#feedback").classList.add("hidden");$("#final").classList.remove("hidden");let pct=Math.round(total/possible*100);$("#finalScore").textContent=`${total} / ${possible} · ${pct}%`;$("#domain").innerHTML=Object.entries(D).map(([k,v])=>mini(k,v[0],v[1],v[0]==v[1])).join("");$("#note").textContent=pct>=90?"Excellent performance.":pct>=75?"Strong performance. Review your lowest-scoring domain.":pct>=60?"Good foundation; tighten your systematic interpretation.":"Repeat using the sequence: rate → rhythm → axis → intervals → diagnosis."}});
+$("#restart").addEventListener("click",()=>{i=0;total=0;possible=0;Object.keys(D).forEach(k=>D[k]=[0,0]);$("#score").textContent="0 / 0";load()});load();
+</script></main></body></html>
